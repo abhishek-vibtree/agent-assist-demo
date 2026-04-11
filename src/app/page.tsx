@@ -1,65 +1,163 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { CallListPanel } from "@/components/calls/call-list-panel";
+import { ChatArea } from "@/components/calls/chat-area";
+import { CustomerProfile } from "@/components/calls/customer-profile";
+import { FloatingCTA } from "@/components/calls/floating-cta";
+import { CallPopup } from "@/components/calls/call-popup";
+import { useTwilio } from "@/hooks/use-twilio";
+import { useTranscription } from "@/hooks/use-transcription";
+import { useAgentAssist } from "@/hooks/use-agent-assist";
+import { useCustomers } from "@/hooks/use-customers";
 
 export default function Home() {
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [showProfile, setShowProfile] = useState(true);
+  const [showCallPopup, setShowCallPopup] = useState(false);
+  const dialedNumberRef = useRef<string>("");
+
+  const twilio = useTwilio();
+  const transcription = useTranscription();
+  const agentAssist = useAgentAssist();
+  const { customers, isLoading: isLoadingCustomers } = useCustomers();
+  const prevStatusRef = useRef(twilio.status);
+
+  // Auto-select first customer when data loads
+  useEffect(() => {
+    if (customers.length > 0 && !selectedCustomerId) {
+      setSelectedCustomerId(customers[0].id);
+    }
+  }, [customers, selectedCustomerId]);
+
+  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId) || null;
+
+  // Start/stop transcription on call connect/disconnect
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    const curr = twilio.status;
+    prevStatusRef.current = curr;
+
+    if (prev !== "connected" && curr === "connected") {
+      // Start transcription
+      setTimeout(() => {
+        const streams = twilio.getStreams();
+        transcription.startTranscription(streams.local, streams.remote);
+      }, 1000);
+
+      // Look up customer by dialed phone number and send context to AI
+      const phone = dialedNumberRef.current;
+      const matchedCustomer = customers.find((c) => {
+        // Normalize both numbers (strip non-digits) for comparison
+        const normalize = (n: string) => n.replace(/\D/g, "");
+        return normalize(c.phone_number) === normalize(phone);
+      });
+
+      const customerContext = matchedCustomer
+        ? {
+            name: matchedCustomer.customer_name,
+            phone: matchedCustomer.phone_number,
+            email: matchedCustomer.email,
+            ...matchedCustomer.details,
+            recentConversations: matchedCustomer.conversation,
+          }
+        : phone
+          ? { phone, note: "Unknown caller — no matching record found." }
+          : undefined;
+
+      agentAssist.warmUpSession(customerContext);
+    }
+
+    if (
+      prev === "connected" &&
+      (curr === "idle" || curr === "disconnected" || curr === "error")
+    ) {
+      transcription.stopTranscription();
+      agentAssist.clearMessages();
+    }
+  }, [twilio.status]);
+
+  // Keep transcript ref updated (no auto-trigger)
+  useEffect(() => {
+    if (twilio.status !== "connected") return;
+
+    const finalEntries = transcription.transcript.filter((e) => e.isFinal);
+    if (finalEntries.length === 0) return;
+
+    const text = finalEntries
+      .map(
+        (e) =>
+          `${e.speaker === "local" ? "Agent" : "Customer"}: ${e.text}`
+      )
+      .join("\n");
+
+    agentAssist.updateTranscript(text);
+  }, [transcription.transcript, twilio.status]);
+
+  // Manual trigger: user clicks the AI button
+  const handleTriggerAssist = useCallback(() => {
+    const finalEntries = transcription.transcript.filter((e) => e.isFinal);
+    if (finalEntries.length === 0) return;
+
+    const text = finalEntries
+      .map(
+        (e) =>
+          `${e.speaker === "local" ? "Agent" : "Customer"}: ${e.text}`
+      )
+      .join("\n");
+
+    agentAssist.requestAssist(text);
+  }, [transcription.transcript, agentAssist.requestAssist]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset className="flex h-screen flex-row overflow-hidden">
+        <CallListPanel
+          customers={customers}
+          isLoading={isLoadingCustomers}
+          selectedId={selectedCustomerId}
+          onSelect={setSelectedCustomerId}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        <ChatArea
+          customer={selectedCustomer}
+          onHeaderClick={() => setShowProfile((v) => !v)}
+        />
+        {showProfile && selectedCustomer && (
+          <CustomerProfile
+            customer={selectedCustomer}
+            onClose={() => setShowProfile(false)}
+          />
+        )}
+      </SidebarInset>
+      <FloatingCTA onClick={() => setShowCallPopup(true)} />
+      <CallPopup
+        open={showCallPopup}
+        onClose={() => setShowCallPopup(false)}
+        status={twilio.status}
+        isMuted={twilio.isMuted}
+        duration={twilio.duration}
+        error={twilio.error}
+        isReady={twilio.isReady}
+        onMakeCall={(phone: string) => {
+          dialedNumberRef.current = phone;
+          twilio.makeCall(phone);
+        }}
+        onHangUp={twilio.hangUp}
+        onToggleMute={twilio.toggleMute}
+        onSendDigits={twilio.sendDigits}
+        onInitDevice={twilio.initDevice}
+        transcript={transcription.transcript}
+        isTranscribing={transcription.isTranscribing}
+        transcriptionError={transcription.error}
+        assistMessages={agentAssist.messages}
+        isSuggestionLoading={agentAssist.isLoading}
+        suggestionError={agentAssist.error}
+        onAskQuestion={agentAssist.askQuestion}
+        onTriggerAssist={handleTriggerAssist}
+      />
+    </SidebarProvider>
   );
 }
