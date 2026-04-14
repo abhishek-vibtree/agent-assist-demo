@@ -12,6 +12,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 function AudioPlayer({ duration }: { duration: string }) {
   return (
@@ -49,6 +50,7 @@ function CallLogBubble({
   customerName: string;
   phone: string;
 }) {
+  const { tc } = useI18n();
   const isOutgoing = entry.direction === "outgoing";
   const isConnected = entry.status === "connected";
 
@@ -121,7 +123,7 @@ function CallLogBubble({
             <div className="flex items-start gap-2 rounded-lg bg-yellow-50 p-2.5">
               <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <p className="text-xs leading-relaxed text-foreground">
-                {entry.note}
+                {tc(entry.note)}
               </p>
             </div>
           )}
@@ -162,10 +164,12 @@ export function ChatArea({
   customer: AgentAssistRow | null;
   onHeaderClick?: () => void;
 }) {
+  const { t } = useI18n();
+
   if (!customer) {
     return (
       <div className="flex min-w-0 flex-1 flex-col items-center justify-center border-r bg-background">
-        <p className="text-sm text-muted-foreground">Select a call to view</p>
+        <p className="text-sm text-muted-foreground">{t("selectCallToView")}</p>
       </div>
     );
   }
@@ -229,7 +233,7 @@ export function ChatArea({
         <div className="flex flex-col items-center gap-3 p-4">
           {conversations.length === 0 ? (
             <p className="py-12 text-sm text-muted-foreground">
-              No call history yet
+              {t("noCallHistoryYet")}
             </p>
           ) : (
             Array.from(grouped.entries()).map(([date, entries]) => (

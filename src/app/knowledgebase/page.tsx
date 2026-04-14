@@ -15,6 +15,7 @@ import {
   Search,
   FolderOpen,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 const ALLOWED_EXTENSIONS = [
   "csv",
@@ -60,16 +61,6 @@ function formatBytes(bytes: number) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function KnowledgebasePage() {
   const [files, setFiles] = useState<KBFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,6 +70,17 @@ export default function KnowledgebasePage() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
+  const { t, locale } = useI18n();
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const fetchFiles = useCallback(async () => {
     try {
@@ -205,6 +207,8 @@ export default function KnowledgebasePage() {
     f.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const fileCountLabel = `${files.length} ${files.length !== 1 ? t("files") : t("file")}`;
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -214,15 +218,15 @@ export default function KnowledgebasePage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold text-foreground">
-                Knowledge Base
+                {t("knowledgeBaseTitle")}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Upload documents for AI Agent Assist to reference during calls.
+                {t("knowledgeBaseDesc")}
               </p>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-muted-foreground">
-                {files.length} file{files.length !== 1 ? "s" : ""}
+                {fileCountLabel}
               </span>
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -230,7 +234,7 @@ export default function KnowledgebasePage() {
                 className="flex h-9 items-center gap-2 rounded-lg bg-foreground px-4 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
               >
                 <Upload className="h-4 w-4" />
-                Upload
+                {t("upload")}
               </button>
             </div>
           </div>
@@ -240,7 +244,7 @@ export default function KnowledgebasePage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search files..."
+              placeholder={t("searchFiles")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-lg border bg-background py-2 pl-10 pr-4 text-sm outline-none placeholder:text-muted-foreground/50 focus:border-foreground/20 focus:ring-1 focus:ring-foreground/10"
@@ -271,7 +275,7 @@ export default function KnowledgebasePage() {
               onClick={() => setError(null)}
               className="ml-2 font-medium underline"
             >
-              Dismiss
+              {t("dismiss")}
             </button>
           </div>
         )}
@@ -290,7 +294,7 @@ export default function KnowledgebasePage() {
               <div className="flex flex-col items-center gap-2">
                 <Upload className="h-10 w-10 text-purple-500" />
                 <p className="text-sm font-medium text-purple-700">
-                  Drop files here to upload
+                  {t("dropFilesHere")}
                 </p>
                 <p className="text-xs text-purple-500">
                   {ALLOWED_EXTENSIONS.map((e) => `.${e}`).join(", ")}
@@ -312,7 +316,7 @@ export default function KnowledgebasePage() {
                 ))}
               </div>
               <span className="text-sm text-purple-700">
-                Uploading files...
+                {t("uploadingFiles")}
               </span>
             </div>
           )}
@@ -341,13 +345,13 @@ export default function KnowledgebasePage() {
               <FolderOpen className="h-12 w-12 text-gray-300" />
               <p className="mt-3 text-sm font-medium text-muted-foreground">
                 {searchQuery
-                  ? "No files match your search"
-                  : "No files uploaded yet"}
+                  ? t("noFilesMatchSearch")
+                  : t("noFilesUploadedYet")}
               </p>
               <p className="mt-1 text-xs text-muted-foreground/70">
                 {searchQuery
-                  ? "Try a different search term"
-                  : "Drag & drop files here or click Upload"}
+                  ? t("tryDifferentSearch")
+                  : t("dragAndDropFiles")}
               </p>
               {!searchQuery && (
                 <button
@@ -355,7 +359,7 @@ export default function KnowledgebasePage() {
                   className="mt-4 flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
                 >
                   <Upload className="h-4 w-4" />
-                  Upload Files
+                  {t("uploadFiles")}
                 </button>
               )}
             </div>
@@ -366,16 +370,16 @@ export default function KnowledgebasePage() {
                 <thead>
                   <tr className="border-b bg-gray-50/50">
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Name
+                      {t("name")}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Size
+                      {t("size")}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Uploaded
+                      {t("uploaded")}
                     </th>
                     <th className="w-24 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Actions
+                      {t("actions")}
                     </th>
                   </tr>
                 </thead>
@@ -406,14 +410,14 @@ export default function KnowledgebasePage() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-gray-100"
-                            title="Download"
+                            title={t("download")}
                           >
                             <Download className="h-4 w-4 text-muted-foreground" />
                           </a>
                           <button
                             onClick={() => deleteFile(file.name)}
                             className="flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-red-50"
-                            title="Delete"
+                            title={t("delete")}
                           >
                             <Trash2 className="h-4 w-4 text-red-400 hover:text-red-600" />
                           </button>

@@ -1,4 +1,7 @@
+"use client";
+
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 const colorMap: Record<string, string> = {
   blue: "bg-blue-100 text-blue-900",
@@ -22,6 +25,7 @@ export function CallLabel({
   color: string;
   rounded?: boolean;
 }) {
+  const { tc } = useI18n();
   return (
     <span
       className={cn(
@@ -30,7 +34,7 @@ export function CallLabel({
         colorMap[color] || "bg-gray-100 text-gray-900"
       )}
     >
-      {text}
+      {tc(text)}
     </span>
   );
 }

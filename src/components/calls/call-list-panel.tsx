@@ -13,15 +13,18 @@ import {
   PhoneMissed,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 function CallListItem({
   customer,
   active,
   onClick,
+  noAnswerLabel,
 }: {
   customer: AgentAssistRow;
   active: boolean;
   onClick: () => void;
+  noAnswerLabel: string;
 }) {
   const labels = customer.details?.labels || [];
   const initials =
@@ -74,7 +77,7 @@ function CallListItem({
             <PhoneForwarded className="h-4 w-4 shrink-0 text-emerald-500" />
           )}
           <span className="text-sm text-muted-foreground">
-            {isMissed && !duration ? "No answer" : duration || "0:00"}
+            {isMissed && !duration ? noAnswerLabel : duration || "0:00"}
           </span>
         </div>
 
@@ -101,12 +104,14 @@ export function CallListPanel({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="flex h-full w-80 flex-col border-r bg-background">
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Calls</h2>
+          <h2 className="text-lg font-semibold">{t("calls")}</h2>
           <span className="text-sm text-muted-foreground">
             {customers.length}
           </span>
@@ -129,7 +134,7 @@ export function CallListPanel({
               &#x1F680;
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-normal">Customer support</span>
+              <span className="text-sm font-normal">{t("customerSupport")}</span>
               <span className="text-xs text-muted-foreground">
                 +91 987654310
               </span>
@@ -164,6 +169,7 @@ export function CallListPanel({
                 customer={customer}
                 active={customer.id === selectedId}
                 onClick={() => onSelect(customer.id)}
+                noAnswerLabel={t("noAnswer")}
               />
             ))}
           </div>

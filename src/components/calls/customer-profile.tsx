@@ -11,6 +11,7 @@ import {
   StickyNote,
   Package,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -28,6 +29,7 @@ export function CustomerProfile({
   customer: AgentAssistRow;
   onClose?: () => void;
 }) {
+  const { t, tc } = useI18n();
   const details = customer.details || {};
   const initials =
     details.initials ||
@@ -79,24 +81,24 @@ export function CustomerProfile({
         {/* Info */}
         <div className="border-b bg-background px-5 py-6">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-medium">Info</h3>
+            <h3 className="font-medium">{t("info")}</h3>
             <button className="rounded-md p-1 hover:bg-muted">
               <Pencil className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
           <div className="flex flex-col gap-1">
-            <InfoRow label="First Name" value={details.firstName || ""} />
-            <InfoRow label="Last Name" value={details.lastName || ""} />
-            <InfoRow label="Email Address" value={customer.email || ""} />
-            <InfoRow label="Date of Birth" value={details.dob || ""} />
-            <InfoRow label="Gender" value={details.gender || ""} />
+            <InfoRow label={t("firstName")} value={details.firstName || ""} />
+            <InfoRow label={t("lastName")} value={details.lastName || ""} />
+            <InfoRow label={t("emailAddress")} value={customer.email || ""} />
+            <InfoRow label={t("dateOfBirth")} value={details.dob || ""} />
+            <InfoRow label={t("gender")} value={tc(details.gender || "")} />
           </div>
         </div>
 
         {/* Order History */}
         <div className="border-b bg-background px-5 py-6">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-medium">Order History</h3>
+            <h3 className="font-medium">{t("orderHistory")}</h3>
             <div className="flex items-center gap-1">
               <span className="text-sm font-medium text-muted-foreground">
                 {orders.length}
@@ -105,7 +107,7 @@ export function CustomerProfile({
             </div>
           </div>
           {orders.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No orders yet</p>
+            <p className="text-xs text-muted-foreground">{t("noOrdersYet")}</p>
           ) : (
             <div className="flex flex-col gap-3">
               {orders.map((order, i) => (
@@ -128,7 +130,7 @@ export function CustomerProfile({
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="truncate text-xs font-medium text-foreground">
-                      {order.product}
+                      {tc(order.product)}
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-muted-foreground">
@@ -151,7 +153,7 @@ export function CustomerProfile({
                               : "bg-red-50 text-red-700"
                         }`}
                       >
-                        {order.status}
+                        {tc(order.status)}
                       </span>
                     </div>
                   </div>
@@ -164,13 +166,13 @@ export function CustomerProfile({
         {/* Notes */}
         <div className="border-b bg-background px-5 py-6">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-medium">Notes</h3>
+            <h3 className="font-medium">{t("notes")}</h3>
             <button className="rounded-md p-1 hover:bg-muted">
               <PlusCircle className="h-5 w-5 text-muted-foreground" />
             </button>
           </div>
           {notes.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No notes yet</p>
+            <p className="text-xs text-muted-foreground">{t("noNotesYet")}</p>
           ) : (
             <div className="flex flex-col gap-3">
               {notes.map((note, i) => (
@@ -178,7 +180,7 @@ export function CustomerProfile({
                   <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 shadow-sm">
                     <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                     <p className="text-xs leading-relaxed text-muted-foreground">
-                      {note.text}
+                      {tc(note.text)}
                     </p>
                   </div>
                   <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground/70">
@@ -193,7 +195,7 @@ export function CustomerProfile({
           )}
           {notes.length > 2 && (
             <button className="mt-3 text-sm font-medium text-emerald-600 hover:text-emerald-700">
-              See all notes
+              {t("seeAllNotes")}
             </button>
           )}
         </div>
@@ -201,13 +203,13 @@ export function CustomerProfile({
         {/* Addresses */}
         <div className="bg-background px-5 py-6">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-medium">Addresses</h3>
+            <h3 className="font-medium">{t("addresses")}</h3>
             <button className="rounded-md p-1 hover:bg-muted">
               <PlusCircle className="h-5 w-5 text-emerald-600" />
             </button>
           </div>
           {addresses.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No addresses added</p>
+            <p className="text-xs text-muted-foreground">{t("noAddressesAdded")}</p>
           ) : (
             <div className="flex flex-col gap-4">
               {addresses.map((addr, i) => (
@@ -218,10 +220,10 @@ export function CustomerProfile({
                   </p>
                   <div className="flex gap-4">
                     <button className="text-sm font-medium text-emerald-600 hover:text-emerald-700">
-                      Edit
+                      {t("edit")}
                     </button>
                     <button className="text-sm font-medium text-emerald-600 hover:text-emerald-700">
-                      Delete
+                      {t("delete")}
                     </button>
                   </div>
                 </div>

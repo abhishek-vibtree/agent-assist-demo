@@ -21,6 +21,7 @@ import {
 import type { CallStatus } from "@/hooks/use-twilio";
 import type { TranscriptEntry } from "@/hooks/use-transcription";
 import type { AgentMetadata, AssistMessage } from "@/hooks/use-agent-assist";
+import { useI18n } from "@/lib/i18n";
 
 function formatDuration(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -70,7 +71,6 @@ function TranscriptBubble({ entry }: { entry: TranscriptEntry }) {
 
 /* ── Render text with **bold** markdown ── */
 function BoldText({ text }: { text: string }) {
-  // Split on **...** patterns and render bold spans
   const parts = text.split(/(\*\*[^*]+?\*\*)/g);
   return (
     <>
@@ -91,6 +91,7 @@ function BoldText({ text }: { text: string }) {
 /* ── Metadata tags (reason, confidence, sentiment, flags) ── */
 function MetadataTags({ metadata }: { metadata: AgentMetadata }) {
   const [reasonOpen, setReasonOpen] = useState(false);
+  const { t } = useI18n();
   const confidenceColor = (c: string) => {
     const lower = c.toLowerCase();
     if (lower.includes("high")) return { bg: "#DCFCE7", text: "#16A34A" };
@@ -135,7 +136,7 @@ function MetadataTags({ metadata }: { metadata: AgentMetadata }) {
             className="flex w-full items-center justify-between text-left"
           >
             <span className="text-[10px] font-semibold text-foreground/70">
-              Reason
+              {t("reason")}
             </span>
             <ChevronDown
               className={cn(
@@ -189,6 +190,7 @@ function AssistChatPanel({
 }) {
   const [input, setInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -209,10 +211,10 @@ function AssistChatPanel({
             <Sparkles className="h-8 w-8 text-purple-300" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                AI Agent Assist
+                {t("aiAgentAssist")}
               </p>
               <p className="mt-1 text-xs text-muted-foreground/70">
-                Click the AI button or ask a question below to get suggestions.
+                {t("clickAiButton")}
               </p>
             </div>
           </div>
@@ -220,14 +222,11 @@ function AssistChatPanel({
 
         <div className="space-y-3">
           {messages.map((msg, idx) => {
-            // Check if this is the last message and still streaming
             const isLastMsg = idx === messages.length - 1;
             const isStreaming = isLastMsg && isLoading && msg.role === "assistant";
             const isEmpty = !msg.content || msg.content.trim() === "";
 
-            // Skip rendering empty placeholder while streaming hasn't started
             if (msg.role === "assistant" && isEmpty && isStreaming) return null;
-            // Skip empty assistant messages entirely
             if (msg.role === "assistant" && isEmpty && !isStreaming) return null;
 
             return (
@@ -252,7 +251,6 @@ function AssistChatPanel({
                           <span className="ml-0.5 inline-block h-3 w-0.5 animate-pulse bg-purple-400 align-text-bottom" />
                         )}
                       </p>
-                      {/* Show metadata tags after streaming is done */}
                       {!isStreaming && msg.parsed?.metadata && (
                         <MetadataTags metadata={msg.parsed.metadata} />
                       )}
@@ -263,7 +261,7 @@ function AssistChatPanel({
             );
           })}
 
-          {/* Loading indicator — only show when no streaming message is visible yet */}
+          {/* Loading indicator */}
           {isLoading && (messages.length === 0 || messages[messages.length - 1]?.role === "user" || (!messages[messages.length - 1]?.content)) && (
             <div className="flex gap-2">
               <div className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-purple-100">
@@ -279,7 +277,7 @@ function AssistChatPanel({
                     />
                   ))}
                   <span className="ml-1 text-[10px] text-muted-foreground">
-                    Thinking...
+                    {t("thinking")}
                   </span>
                 </div>
               </div>
@@ -301,7 +299,7 @@ function AssistChatPanel({
         <div className="flex items-center gap-2">
           <input
             type="text"
-            placeholder="Ask AI about this call..."
+            placeholder={t("askAiAboutCall")}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -374,6 +372,7 @@ export function CallPopup({
   const [showDtmf, setShowDtmf] = useState(false);
   const [showAssistPanel, setShowAssistPanel] = useState(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (open && !isReady) onInitDevice();
@@ -404,12 +403,12 @@ export function CallPopup({
   };
 
   const statusLabel: Record<string, string> = {
-    idle: "Ready",
-    connecting: "Connecting...",
-    ringing: "Ringing...",
-    connected: "Connected",
-    disconnected: "Call Ended",
-    error: error || "Error",
+    idle: t("ready"),
+    connecting: t("connecting"),
+    ringing: t("ringing"),
+    connected: t("connected"),
+    disconnected: t("callEnded"),
+    error: error || t("error"),
   };
 
   const statusColor: Record<string, string> = {
@@ -421,7 +420,6 @@ export function CallPopup({
     error: "text-red-500",
   };
 
-  // Wide two-column layout only when assist panel is open
   const popupWidth = isActive && showAssistPanel ? 760 : 380;
 
   return (
@@ -444,12 +442,12 @@ export function CallPopup({
             )}
           />
           <span className="text-sm font-semibold text-foreground">
-            {isActive ? "Live Call" : "Make a Call"}
+            {isActive ? t("liveCall") : t("makeACallTitle")}
           </span>
           {isTranscribing && (
             <span className="flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-purple-500" />
-              Live
+              {t("live")}
             </span>
           )}
         </div>
@@ -464,7 +462,6 @@ export function CallPopup({
                   <span className="font-mono text-sm tabular-nums text-muted-foreground">
                     {formatDuration(duration)}
                   </span>
-                  {/* AI Assist trigger button */}
                   <button
                     onClick={() => {
                       if (!showAssistPanel) {
@@ -521,7 +518,7 @@ export function CallPopup({
               <div className="relative">
                 <Input
                   type="tel"
-                  placeholder="Enter phone number"
+                  placeholder={t("enterPhoneNumber")}
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   onKeyDown={(e) => {
@@ -544,7 +541,7 @@ export function CallPopup({
           {isActive && (
             <div className="shrink-0 flex flex-col items-center gap-0.5 px-4 py-3">
               <span className="text-base font-semibold tracking-wide text-foreground">
-                {phoneNumber || "Unknown"}
+                {phoneNumber || t("unknown")}
               </span>
               {(status === "connecting" || status === "ringing") && (
                 <div className="mt-1 flex gap-1">
@@ -568,7 +565,7 @@ export function CallPopup({
           )}
           {transcriptionError && (
             <div className="mx-4 mb-2 rounded-lg bg-yellow-50 px-3 py-2 text-xs text-yellow-700">
-              Transcription: {transcriptionError}
+              {t("transcription")}: {transcriptionError}
             </div>
           )}
 
@@ -607,7 +604,7 @@ export function CallPopup({
                           strokeLinecap="round"
                         />
                       </svg>
-                      <span className="text-xs">Listening for speech...</span>
+                      <span className="text-xs">{t("listeningForSpeech")}</span>
                     </>
                   ) : (
                     <span className="text-xs">{statusLabel[status]}</span>
@@ -617,7 +614,6 @@ export function CallPopup({
                 <div className="space-y-2">
                   {transcript
                     .filter((entry, idx, arr) => {
-                      // Skip interim entries if the next entry from same speaker is final with same/similar text
                       if (!entry.isFinal) {
                         const next = arr[idx + 1];
                         if (next && next.isFinal && next.speaker === entry.speaker) {
@@ -735,7 +731,7 @@ export function CallPopup({
                     color: isMuted ? "#EF4444" : "rgba(255,255,255,0.6)",
                   }}
                 >
-                  {isMuted ? "Unmute" : "Mute"}
+                  {isMuted ? t("unmute") : t("mute")}
                 </span>
               </button>
 
@@ -758,7 +754,7 @@ export function CallPopup({
                     color: showDtmf ? "#22C55E" : "rgba(255,255,255,0.6)",
                   }}
                 >
-                  Keypad
+                  {t("keypad")}
                 </span>
               </button>
 
@@ -779,7 +775,7 @@ export function CallPopup({
             <div className="flex items-center gap-2 border-b px-4 py-2.5">
               <Sparkles className="h-4 w-4 text-purple-500" />
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                AI Assist
+                {t("aiAssist")}
               </span>
             </div>
             <AssistChatPanel
