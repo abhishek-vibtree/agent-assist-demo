@@ -12,6 +12,9 @@ import { useTwilio } from "@/hooks/use-twilio";
 import { useTranscription } from "@/hooks/use-transcription";
 import { useAgentAssist } from "@/hooks/use-agent-assist";
 import { useCustomers } from "@/hooks/use-customers";
+import { useConversationSave } from "@/hooks/use-conversation-save";
+import type { ConversationEntry } from "@/lib/db-types";
+
 
 export default function Home() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -22,8 +25,24 @@ export default function Home() {
   const twilio = useTwilio();
   const transcription = useTranscription();
   const agentAssist = useAgentAssist();
-  const { customers, isLoading: isLoadingCustomers } = useCustomers();
+  const { customers, isLoading: isLoadingCustomers, refetch: refetchCustomers } = useCustomers();
+  const conversationSave = useConversationSave();
   const prevStatusRef = useRef(twilio.status);
+
+  // Refs to track active call IDs
+  const activeCustomerIdRef = useRef<string | null>(null);
+  const activeConversationIdRef = useRef<string | null>(null);
+
+  // Track call start time independently — twilio.duration resets to 0 on hangUp()
+  // before the disconnect effect runs, so we compute duration ourselves
+  const callStartTimeRef = useRef<number | null>(null);
+
+  // Mirror live data to refs so the disconnect handler reads current values
+  const transcriptRef = useRef(transcription.transcript);
+  useEffect(() => { transcriptRef.current = transcription.transcript; }, [transcription.transcript]);
+
+  const assistMessagesRef = useRef(agentAssist.messages);
+  useEffect(() => { assistMessagesRef.current = agentAssist.messages; }, [agentAssist.messages]);
 
   // Auto-select first customer when data loads
   useEffect(() => {
@@ -41,6 +60,8 @@ export default function Home() {
     prevStatusRef.current = curr;
 
     if (prev !== "connected" && curr === "connected") {
+      callStartTimeRef.current = Date.now();
+
       // Start transcription
       setTimeout(() => {
         const streams = twilio.getStreams();
@@ -68,14 +89,57 @@ export default function Home() {
           : undefined;
 
       agentAssist.warmUpSession(customerContext);
+
+      // Create a new conversation entry in Supabase for this call
+      if (matchedCustomer) {
+        const newEntry: ConversationEntry = {
+          id: crypto.randomUUID(),
+          direction: "outgoing",
+          status: "connected",
+          duration: "",
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          date: new Date().toLocaleDateString(),
+          labels: [],
+        };
+        activeCustomerIdRef.current = matchedCustomer.id;
+        activeConversationIdRef.current = newEntry.id;
+        conversationSave.createConversationEntry(matchedCustomer.id, newEntry).then((ok) => {
+          if (ok) refetchCustomers();
+        });
+      }
     }
 
     if (
       prev === "connected" &&
       (curr === "idle" || curr === "disconnected" || curr === "error")
     ) {
-      transcription.stopTranscription();
-      agentAssist.clearMessages();
+      (async () => {
+        // Compute duration from start time
+        const durationSecs = callStartTimeRef.current
+          ? Math.floor((Date.now() - callStartTimeRef.current) / 1000)
+          : 0;
+        const durationStr = durationSecs > 0
+          ? `${Math.floor(durationSecs / 60)}:${String(durationSecs % 60).padStart(2, "0")}`
+          : undefined;
+        callStartTimeRef.current = null;
+
+        if (activeCustomerIdRef.current && activeConversationIdRef.current) {
+          await conversationSave.saveCallData(
+            activeCustomerIdRef.current,
+            activeConversationIdRef.current,
+            {
+              transcript: transcriptRef.current,
+              assistMessages: assistMessagesRef.current,
+              duration: durationStr,
+            }
+          );
+          refetchCustomers();
+        }
+        transcription.stopTranscription();
+        agentAssist.clearMessages();
+        activeCustomerIdRef.current = null;
+        activeConversationIdRef.current = null;
+      })();
     }
   }, [twilio.status]);
 

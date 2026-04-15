@@ -1,3 +1,37 @@
+export interface StoredTranscriptEntry {
+  speaker: "local" | "remote";
+  text: string;
+  timestamp: number;
+}
+
+export interface StoredAssistMessage {
+  role: "user" | "assistant";
+  type: "suggestion" | "chat";
+  content: string;
+  metadata?: {
+    reason: string;
+    confidence: string;
+    sentiment: string;
+    flags: string;
+  };
+  timestamp: number;
+}
+
+export interface ConversationEntry {
+  id: string;
+  direction: "outgoing" | "incoming";
+  status: "connected" | "missed";
+  duration: string;
+  time: string;
+  date: string;
+  agent?: string;
+  labels: { text: string; color: string }[];
+  note?: string;
+  transcript?: StoredTranscriptEntry[];
+  summary?: string;
+  assistHistory?: StoredAssistMessage[];
+}
+
 // Database row type for agent_assist table
 export interface AgentAssistRow {
   id: string;
@@ -23,18 +57,7 @@ export interface AgentAssistRow {
       image: string;
     }[];
   };
-  conversation: {
-    id: string;
-    direction: "outgoing" | "incoming";
-    status: "connected" | "missed";
-    duration: string;
-    time: string;
-    date: string;
-    hasRecording: boolean;
-    agent?: string;
-    labels: { text: string; color: string }[];
-    note?: string;
-  }[];
+  conversation: ConversationEntry[];
   created_at: string;
   updated_at: string;
 }

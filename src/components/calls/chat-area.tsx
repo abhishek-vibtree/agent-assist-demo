@@ -1,44 +1,146 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { CallLabel } from "./call-label";
-import type { AgentAssistRow } from "@/lib/db-types";
+import type { AgentAssistRow, ConversationEntry, StoredTranscriptEntry, StoredAssistMessage } from "@/lib/db-types";
 import {
   MoreVertical,
   Phone,
   PhoneIncoming,
-  Play,
   StickyNote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
-function AudioPlayer({ duration }: { duration: string }) {
+
+/* ── Render text with **bold** markdown ── */
+function BoldText({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+?\*\*)/g);
   return (
-    <div className="flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5">
-      <button className="text-muted-foreground hover:text-foreground">
-        <Play className="h-5 w-5 fill-current" />
-      </button>
-      <div className="h-1 flex-1 rounded-full bg-muted">
-        <div className="h-full w-0 rounded-full bg-emerald-600" />
-      </div>
-      <span className="text-xs text-muted-foreground">{duration}</span>
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          return (
+            <span key={i} className="font-semibold text-foreground">
+              {part.slice(2, -2)}
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
+/* ── Transcript panel ── */
+function TranscriptPanel({ entries }: { entries: StoredTranscriptEntry[] }) {
+  return (
+    <div className="mt-2 rounded-lg border border-black/5 bg-white/70 p-2 space-y-1">
+      {entries.map((e, i) => (
+        <div
+          key={i}
+          className={cn(
+            "flex flex-col gap-0.5",
+            e.speaker === "local" ? "items-end" : "items-start"
+          )}
+        >
+          <span className="text-[9px] font-medium text-muted-foreground">
+            {e.speaker === "local" ? "Agent" : "Customer"}
+          </span>
+          <span
+            className={cn(
+              "rounded-xl px-2.5 py-1 text-[11px] leading-relaxed",
+              e.speaker === "local"
+                ? "bg-blue-100 text-blue-900"
+                : "bg-muted text-foreground"
+            )}
+          >
+            {e.text}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
 
-interface ConversationEntry {
-  id: string;
-  direction: "outgoing" | "incoming";
-  status: "connected" | "missed";
-  duration: string;
-  time: string;
-  date: string;
-  hasRecording: boolean;
-  agent?: string;
-  labels: { text: string; color: string }[];
-  note?: string;
+/* ── Summary panel ── */
+function SummaryPanel({ text }: { text: string }) {
+  return (
+    <div className="mt-2 rounded-lg border border-black/5 bg-emerald-50 p-2.5">
+      <p className="text-[11px] leading-relaxed text-foreground/80">
+        <BoldText text={text} />
+      </p>
+    </div>
+  );
+}
+
+/* ── Confidence/sentiment badge helpers ── */
+function confidenceColor(c: string) {
+  const lower = c.toLowerCase();
+  if (lower.includes("high")) return { bg: "#DCFCE7", text: "#16A34A" };
+  if (lower.includes("medium")) return { bg: "#FEF9C3", text: "#A16207" };
+  return { bg: "#FEE2E2", text: "#EF4444" };
+}
+
+function sentimentColor(s: string) {
+  const lower = s.toLowerCase();
+  if (lower.includes("happy") || lower.includes("positive"))
+    return { bg: "#DCFCE7", text: "#16A34A" };
+  if (lower.includes("angry") || lower.includes("negative") || lower.includes("frustrat"))
+    return { bg: "#FEE2E2", text: "#EF4444" };
+  return { bg: "#F3F4F6", text: "#6B7280" };
+}
+
+/* ── Assist history panel ── */
+function AssistHistoryPanel({ messages }: { messages: StoredAssistMessage[] }) {
+  return (
+    <div className="mt-2 rounded-lg border border-black/5 bg-white/70 p-2 space-y-2">
+      {messages.map((m, i) => (
+        <div
+          key={i}
+          className={cn(
+            "flex flex-col gap-0.5",
+            m.role === "user" ? "items-end" : "items-start"
+          )}
+        >
+          <span className="text-[9px] font-medium text-muted-foreground">
+            {m.role === "user" ? "Agent" : m.type === "suggestion" ? "AI Suggest" : "AI Reply"}
+          </span>
+          <div
+            className={cn(
+              "rounded-xl px-2.5 py-1.5 text-[11px] leading-relaxed",
+              m.role === "user"
+                ? "bg-purple-100 text-purple-900"
+                : "bg-white text-foreground/80 ring-1 ring-gray-100 shadow-sm"
+            )}
+          >
+            <BoldText text={m.content} />
+            {m.metadata && (m.metadata.confidence || m.metadata.sentiment) && (
+              <div className="flex gap-1 mt-1 flex-wrap">
+                {m.metadata.confidence && (
+                  <span
+                    className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold"
+                    style={{ backgroundColor: confidenceColor(m.metadata.confidence).bg, color: confidenceColor(m.metadata.confidence).text }}
+                  >
+                    {m.metadata.confidence}
+                  </span>
+                )}
+                {m.metadata.sentiment && (
+                  <span
+                    className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold"
+                    style={{ backgroundColor: sentimentColor(m.metadata.sentiment).bg, color: sentimentColor(m.metadata.sentiment).text }}
+                  >
+                    {m.metadata.sentiment}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function CallLogBubble({
@@ -53,6 +155,14 @@ function CallLogBubble({
   const { tc } = useI18n();
   const isOutgoing = entry.direction === "outgoing";
   const isConnected = entry.status === "connected";
+  const [showTranscript, setShowTranscript] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [showAssist, setShowAssist] = useState(false);
+
+  const hasTranscript = (entry.transcript?.length ?? 0) > 0;
+  const hasSummary = !!entry.summary;
+  const hasAssist = (entry.assistHistory?.length ?? 0) > 0;
+  const hasExpandable = hasTranscript || hasSummary || hasAssist;
 
   return (
     <div
@@ -99,11 +209,6 @@ function CallLogBubble({
             </div>
           </div>
 
-          {/* Audio player for recorded calls */}
-          {entry.hasRecording && entry.duration && (
-            <AudioPlayer duration={entry.duration} />
-          )}
-
           {/* Labels */}
           {entry.labels.length > 0 && (
             <div className="flex gap-1.5">
@@ -126,6 +231,62 @@ function CallLogBubble({
                 {tc(entry.note)}
               </p>
             </div>
+          )}
+
+          {/* Expandable section toggle pills */}
+          {hasExpandable && (
+            <div className="flex flex-wrap gap-1.5 border-t border-black/5 pt-2">
+              {hasTranscript && (
+                <button
+                  onClick={() => setShowTranscript((v) => !v)}
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] transition-colors",
+                    showTranscript
+                      ? "bg-blue-200 text-blue-800"
+                      : "bg-white/60 text-muted-foreground hover:bg-white"
+                  )}
+                >
+                  Transcript ({entry.transcript!.length})
+                </button>
+              )}
+              {hasSummary && (
+                <button
+                  onClick={() => setShowSummary((v) => !v)}
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] transition-colors",
+                    showSummary
+                      ? "bg-emerald-200 text-emerald-800"
+                      : "bg-white/60 text-muted-foreground hover:bg-white"
+                  )}
+                >
+                  Summary
+                </button>
+              )}
+              {hasAssist && (
+                <button
+                  onClick={() => setShowAssist((v) => !v)}
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] transition-colors",
+                    showAssist
+                      ? "bg-purple-200 text-purple-800"
+                      : "bg-white/60 text-muted-foreground hover:bg-white"
+                  )}
+                >
+                  AI Assist ({entry.assistHistory!.length})
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Expanded panels */}
+          {showTranscript && entry.transcript && (
+            <TranscriptPanel entries={entry.transcript} />
+          )}
+          {showSummary && entry.summary && (
+            <SummaryPanel text={entry.summary} />
+          )}
+          {showAssist && entry.assistHistory && (
+            <AssistHistoryPanel messages={entry.assistHistory} />
           )}
         </div>
 
@@ -165,6 +326,11 @@ export function ChatArea({
   onHeaderClick?: () => void;
 }) {
   const { t } = useI18n();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+  }, [customer?.id, customer?.conversation?.length]);
 
   if (!customer) {
     return (
@@ -194,7 +360,7 @@ export function ChatArea({
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col border-r bg-background">
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-r bg-background">
       {/* Header — click to toggle profile sidebar */}
       <div
         className="flex cursor-pointer items-center justify-between border-b px-6 py-3 transition-colors hover:bg-muted/30"
@@ -229,7 +395,7 @@ export function ChatArea({
       </div>
 
       {/* Chat body */}
-      <ScrollArea className="flex-1">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col items-center gap-3 p-4">
           {conversations.length === 0 ? (
             <p className="py-12 text-sm text-muted-foreground">
@@ -256,7 +422,7 @@ export function ChatArea({
             ))
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

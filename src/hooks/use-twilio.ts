@@ -43,6 +43,7 @@ export function useTwilio() {
   // Use refs to avoid stale closures in event handlers
   const deviceRef = useRef<any>(null);
   const callRef = useRef<any>(null);
+  const callSidRef = useRef<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearTimer = useCallback(() => {
@@ -149,6 +150,8 @@ export function useTwilio() {
         });
 
         call.on("accept", () => {
+          // Capture the CallSid once the call is accepted
+          callSidRef.current = (call as any).parameters?.CallSid ?? null;
           setState((s) => ({ ...s, status: "connected" }));
           clearTimer();
           timerRef.current = setInterval(() => {
@@ -159,6 +162,7 @@ export function useTwilio() {
         call.on("disconnect", () => {
           clearTimer();
           callRef.current = null;
+          callSidRef.current = null;
           setState((s) => ({
             ...s,
             status: "disconnected",
@@ -262,6 +266,10 @@ export function useTwilio() {
     }
   }, []);
 
+  const getCallSid = useCallback((): string | null => {
+    return callSidRef.current;
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -283,5 +291,6 @@ export function useTwilio() {
     toggleMute,
     sendDigits,
     getStreams,
+    getCallSid,
   };
 }
