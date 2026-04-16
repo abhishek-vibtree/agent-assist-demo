@@ -46,6 +46,11 @@ export default function Home() {
   const assistMessagesRef = useRef(agentAssist.messages);
   useEffect(() => { assistMessagesRef.current = agentAssist.messages; }, [agentAssist.messages]);
 
+  // Keep agent assist locale in sync whenever UI locale changes
+  useEffect(() => {
+    agentAssist.setLocale(locale);
+  }, [locale, agentAssist.setLocale]);
+
   // Auto-select first customer when data loads
   useEffect(() => {
     if (customers.length > 0 && !selectedCustomerId) {

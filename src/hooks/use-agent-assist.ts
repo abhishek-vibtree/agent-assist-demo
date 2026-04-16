@@ -74,6 +74,12 @@ export function useAgentAssist() {
   const customerContextRef = useRef<Record<string, any> | undefined>(undefined);
   const localeRef = useRef<string>("en");
 
+  // Update the active locale — call this whenever UI locale changes so the
+  // next request (streamed or warmup) uses the latest language.
+  const setLocale = useCallback((locale: string) => {
+    localeRef.current = locale || "en";
+  }, []);
+
   // Warm up session (non-streaming, runs in background when call connects)
   const warmUpSession = useCallback(async (customerContext?: Record<string, any>, locale: string = "en") => {
     if (warmingUpRef.current || sessionIdRef.current) return;
@@ -316,6 +322,7 @@ export function useAgentAssist() {
     error,
     isSessionReady,
     warmUpSession,
+    setLocale,
     requestAssist,
     updateTranscript,
     askQuestion,

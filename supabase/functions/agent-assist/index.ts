@@ -185,6 +185,11 @@ Deno.serve(async (req: Request) => {
       console.log("[Session] Customer context restored, length:", session.customerContext.length);
     }
 
+    // Always update locale to latest from client (in case user switched language mid-call)
+    if (locale) {
+      session.locale = locale;
+    }
+
     // Build system prompt with KB content, customer context, and language
     let systemPrompt = SYSTEM_PROMPT;
     const sessionLocale = session.locale || "en";
