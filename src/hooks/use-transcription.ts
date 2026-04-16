@@ -22,11 +22,12 @@ async function fetchDeepgramKey(): Promise<string> {
 function createDeepgramSocket(
   apiKey: string,
   onTranscript: (text: string, isFinal: boolean) => void,
-  onError: (err: string) => void
+  onError: (err: string) => void,
+  language: string = "en"
 ): WebSocket {
   const params = new URLSearchParams({
     model: "nova-3",
-    language: "en",
+    language,
     smart_format: "true",
     interim_results: "true",
     utterance_end_ms: "1000",
@@ -135,7 +136,7 @@ export function useTranscription() {
   }, []);
 
   const startTranscription = useCallback(
-    async (localStream: MediaStream | null, remoteStream: MediaStream | null) => {
+    async (localStream: MediaStream | null, remoteStream: MediaStream | null, locale: string = "en") => {
       if (!localStream && !remoteStream) {
         setError("No audio streams available");
         return;
@@ -213,7 +214,8 @@ export function useTranscription() {
           const ws = createDeepgramSocket(
             apiKey,
             makeHandler("local"),
-            (err) => { console.error("[Transcription] Local WS error:", err); setError(err); }
+            (err) => { console.error("[Transcription] Local WS error:", err); setError(err); },
+            locale
           );
           localWsRef.current = ws;
 
@@ -233,7 +235,8 @@ export function useTranscription() {
           const ws = createDeepgramSocket(
             apiKey,
             makeHandler("remote"),
-            (err) => { console.error("[Transcription] Remote WS error:", err); setError(err); }
+            (err) => { console.error("[Transcription] Remote WS error:", err); setError(err); },
+            locale
           );
           remoteWsRef.current = ws;
 

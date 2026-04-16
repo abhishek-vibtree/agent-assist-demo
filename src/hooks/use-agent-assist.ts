@@ -72,20 +72,22 @@ export function useAgentAssist() {
   const sessionIdRef = useRef<string | null>(null);
   const warmingUpRef = useRef(false);
   const customerContextRef = useRef<Record<string, any> | undefined>(undefined);
+  const localeRef = useRef<string>("en");
 
   // Warm up session (non-streaming, runs in background when call connects)
-  const warmUpSession = useCallback(async (customerContext?: Record<string, any>) => {
+  const warmUpSession = useCallback(async (customerContext?: Record<string, any>, locale: string = "en") => {
     if (warmingUpRef.current || sessionIdRef.current) return;
     warmingUpRef.current = true;
 
     try {
-      // Store customer context for all future API calls
+      // Store customer context and locale for all future API calls
       customerContextRef.current = customerContext;
-      console.log("[AgentAssist] Warming up session...", customerContext ? "with customer context" : "");
+      localeRef.current = locale;
+      console.log("[AgentAssist] Warming up session...", customerContext ? "with customer context" : "", "locale:", locale);
       const res = await fetch(`${SUPABASE_URL}/functions/v1/agent-assist`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "warmup", customer_context: customerContext }),
+        body: JSON.stringify({ action: "warmup", customer_context: customerContext, locale }),
       });
 
       if (!res.ok) {
@@ -140,6 +142,7 @@ export function useAgentAssist() {
           question: userQuestion,
           session_id: sessionIdRef.current,
           customer_context: customerContextRef.current,
+          locale: localeRef.current,
         }),
         signal: controller.signal,
       });
@@ -298,6 +301,7 @@ export function useAgentAssist() {
     transcriptRef.current = "";
     sessionIdRef.current = null;
     customerContextRef.current = undefined;
+    localeRef.current = "en";
     setIsSessionReady(false);
     warmingUpRef.current = false;
     if (abortRef.current) {

@@ -13,6 +13,7 @@ import { useTranscription } from "@/hooks/use-transcription";
 import { useAgentAssist } from "@/hooks/use-agent-assist";
 import { useCustomers } from "@/hooks/use-customers";
 import { useConversationSave } from "@/hooks/use-conversation-save";
+import { useI18n } from "@/lib/i18n";
 import type { ConversationEntry } from "@/lib/db-types";
 
 
@@ -22,6 +23,7 @@ export default function Home() {
   const [showCallPopup, setShowCallPopup] = useState(false);
   const dialedNumberRef = useRef<string>("");
 
+  const { locale } = useI18n();
   const twilio = useTwilio();
   const transcription = useTranscription();
   const agentAssist = useAgentAssist();
@@ -65,7 +67,7 @@ export default function Home() {
       // Start transcription
       setTimeout(() => {
         const streams = twilio.getStreams();
-        transcription.startTranscription(streams.local, streams.remote);
+        transcription.startTranscription(streams.local, streams.remote, locale);
       }, 1000);
 
       // Look up customer by dialed phone number and send context to AI
@@ -88,7 +90,7 @@ export default function Home() {
           ? { phone, note: "Unknown caller — no matching record found." }
           : undefined;
 
-      agentAssist.warmUpSession(customerContext);
+      agentAssist.warmUpSession(customerContext, locale);
 
       // Create a new conversation entry in Supabase for this call
       if (matchedCustomer) {

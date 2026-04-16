@@ -48,12 +48,18 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// In-memory cache for KB content, customer context, and conversation history
+// In-memory cache for KB content, customer context, locale, and conversation history
 const sessionCache = new Map<string, {
   kbContent: string;
   customerContext: string;
+  locale: string;
   messages: Array<{ role: string; content: string }>;
 }>();
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "English",
+  ja: "Japanese",
+};
 
 function getApiKey(): string {
   return Deno.env.get("Athropic_Agent_API_ley") || "";
@@ -117,7 +123,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const { action, transcript, question, session_id, customer_context } = body;
+    const { action, transcript, question, session_id, customer_context, locale } = body;
 
     if (!getApiKey()) {
       return new Response(
@@ -135,7 +141,7 @@ Deno.serve(async (req: Request) => {
       const customerCtx = customer_context
         ? JSON.stringify(customer_context, null, 2)
         : "";
-      sessionCache.set(sid, { kbContent, customerContext: customerCtx, messages: [] });
+      sessionCache.set(sid, { kbContent, customerContext: customerCtx, locale: locale || "en", messages: [] });
       console.log("[Warmup] KB cached, length:", kbContent.length);
       if (customerCtx) {
         console.log("[Warmup] Customer context cached, length:", customerCtx.length);
@@ -167,7 +173,7 @@ Deno.serve(async (req: Request) => {
         const customerCtx = customer_context
           ? JSON.stringify(customer_context, null, 2)
           : "";
-        sessionCache.set(sid, { kbContent, customerContext: customerCtx, messages: [] });
+        sessionCache.set(sid, { kbContent, customerContext: customerCtx, locale: locale || "en", messages: [] });
       }
     }
 
@@ -179,8 +185,13 @@ Deno.serve(async (req: Request) => {
       console.log("[Session] Customer context restored, length:", session.customerContext.length);
     }
 
-    // Build system prompt with KB content and customer context
+    // Build system prompt with KB content, customer context, and language
     let systemPrompt = SYSTEM_PROMPT;
+    const sessionLocale = session.locale || "en";
+    if (sessionLocale !== "en") {
+      const langName = LANGUAGE_NAMES[sessionLocale] || sessionLocale;
+      systemPrompt += `\n\n## Language\nYou MUST respond entirely in ${langName}. All suggested replies, next actions, and chat responses must be in ${langName}. Keep the JSON metadata keys in English but values in ${langName}.`;
+    }
     if (session.customerContext) {
       systemPrompt += `\n\n## Customer Profile (from CRM)\nBelow is the customer's ACTUAL profile data including their order history, notes, and past interactions. You MUST use this data to answer any questions about the customer's orders, account, or history. Do NOT ask the agent to look up information that is already here.\n\`\`\`json\n${session.customerContext}\n\`\`\``;
     }
