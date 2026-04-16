@@ -190,7 +190,7 @@ Deno.serve(async (req: Request) => {
     const sessionLocale = session.locale || "en";
     if (sessionLocale !== "en") {
       const langName = LANGUAGE_NAMES[sessionLocale] || sessionLocale;
-      systemPrompt += `\n\n## Language\nYou MUST respond entirely in ${langName}. All suggested replies, next actions, and chat responses must be in ${langName}. Keep the JSON metadata keys in English but values in ${langName}.`;
+      systemPrompt += `\n\n## Language\nYou MUST respond entirely in ${langName}. All Suggested Reply text, Next Action text, and chat responses must be in ${langName}.\n\nIMPORTANT JSON rules:\n- JSON keys stay in English: reason, confidence, sentiment, flags\n- The "reason" value should be in ${langName} (free text).\n- The "confidence" value MUST stay in English: exactly one of "High", "Medium", or "Low".\n- The "sentiment" value MUST stay in English: exactly one of "Angry", "Neutral", or "Happy".\n- The "flags" value MUST stay in English: exactly one of "Compliance", "Escalation", "Angry Customer", or "None".`;
     }
     if (session.customerContext) {
       systemPrompt += `\n\n## Customer Profile (from CRM)\nBelow is the customer's ACTUAL profile data including their order history, notes, and past interactions. You MUST use this data to answer any questions about the customer's orders, account, or history. Do NOT ask the agent to look up information that is already here.\n\`\`\`json\n${session.customerContext}\n\`\`\``;
